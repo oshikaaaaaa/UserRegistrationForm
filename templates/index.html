@@ -1,0 +1,25 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>MySQL with FastAPI</title>
+    <link rel="stylesheet" href="/static/styles.css">
+</head>
+<body>
+    <div class="container">
+        <h1>SignUp</h1>
+        <form action="/add" method="post" id = "signup-form">
+            <input type="text" name="name" placeholder="Enter your name" required>
+            <input type="email" name="email" placeholder="Enter your email" required>
+            <input type="password" name="password" placeholder="Enter your password" required>
+            <input type="date" name="dob" required>
+            <button type="submit">Submit</button>
+        </form>
+
+        <p>Already have an account? <a href="/login">Login</a></p>
+        <p>{{ message }}</p>
+        <p class= "error">{{ error }}</p>
+    </div>
+</body>
+</html>
