@@ -6,6 +6,8 @@ from sqlalchemy import create_engine, Table, MetaData, text
 from sqlalchemy.orm import sessionmaker
 from sqlalchemy.exc import SQLAlchemyError
 from fastapi.responses import HTMLResponse, RedirectResponse
+import bcrypt  # Import bcrypt for password hashing
+
 
 app = FastAPI()
 
@@ -31,6 +33,8 @@ def home(request: Request):
 def add_user(request: Request, name: str = Form(...), email: str = Form(...), password: str = Form(...), dob: str = Form(...)):
     try:
         db = SessionLocal()
+        hashed_password = bcrypt.hashpw(password.encode("utf-8"), bcrypt.gensalt())
+
         
         # Use SQLAlchemy's text() to run raw SQL
         sql_query = text("""
@@ -39,7 +43,7 @@ def add_user(request: Request, name: str = Form(...), email: str = Form(...), pa
         """)
 
         # Execute the query
-        db.execute(sql_query, {"name": name, "email": email, "password": password, "dob": dob})
+        db.execute(sql_query, {"name": name, "email": email, "password": hashed_password.decode("utf-8"), "dob": dob})
         db.commit()
         db.close()
 
@@ -58,34 +62,35 @@ def login_page(request: Request):
 
 
 
+
 @app.post("/login", response_class=HTMLResponse)
 def login(request: Request, email: str = Form(...), password: str = Form(...)):
     try:
         db = SessionLocal()
 
-        # Check if user exists in the database
-        sql_query = text("SELECT * FROM users WHERE email = :email AND password = :password")
-        result = db.execute(sql_query, {"email": email, "password": password}).fetchone()
-
+        # Fetch the user from the database
+        sql_query = text("SELECT * FROM users WHERE email = :email")
+        user = db.execute(sql_query, {"email": email}).fetchone()
         db.close()
 
-        # If user is found, check if the user is admin (hardcoded check)
-        if result:
-            if email == "admin@gmail.com":  # Check for admin email
-                response = RedirectResponse(url="/admin", status_code=302)
-                response.set_cookie("is_admin", "true")  # Set cookie to indicate the user is an admin
-                return response
-            else:
-                response = RedirectResponse(url="/dashboard", status_code=302)
-                response.set_cookie("is_admin", "false")  # Set cookie to indicate the user is not an admin
-                return response
-        else:
-            return templates.TemplateResponse("login.html", {"request": request, "error": "Invalid email or password"})
+        if user:
+            # Extract the hashed password from the database
+            hashed_password = user["password"]
+
+            # Verify the password
+            if bcrypt.checkpw(password.encode("utf-8"), hashed_password.encode("utf-8")):
+                if email == "admin@gmail.com":  # Check for admin email
+                    response = RedirectResponse(url="/admin", status_code=302)
+                    response.set_cookie("is_admin", "true")  # Set cookie to indicate the user is an admin
+                    return response
+                else:
+                    response = RedirectResponse(url="/dashboard", status_code=302)
+                    response.set_cookie("is_admin", "false")  # Set cookie to indicate the user is not an admin
+                    return response
+        return templates.TemplateResponse("login.html", {"request": request, "error": "Invalid email or password"})
 
     except SQLAlchemyError as e:
         return templates.TemplateResponse("login.html", {"request": request, "error": str(e)})
-
-
 
 
 
